@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea/workspace.xml
+/.idea/libraries
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+DataModel.pb.swift
+app/src/main/swift/jniBridge.xcodeproj
+app/src/main/swift/.build
+Package.resolved
+app/src/main/jniLibs
+.idea
+DataModel.java

@@ -1,0 +1,20 @@
+syntax = "proto3";
+option java_package = "com.readdle.swiftjnibridge";
+
+message SampleClassProto {
+
+   string dataSourceId = 1;
+   int64 pkInt = 2;
+   int32 pkInt8 = 3;
+   int32 pkInt16 = 4;
+   int32 pkInt32 = 5;
+   int64 pkInt64 = 6;
+   bool pkBool = 7;
+
+   string string1 = 8;
+   string string2 = 9;
+   string string3 = 10;
+   string string4 = 11;
+   string string5 = 12;
+   string string6 = 13;
+}
