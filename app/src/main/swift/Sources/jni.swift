@@ -3,9 +3,36 @@ import java_swift
 import Foundation
 import Dispatch
 
+public class ComplexClass: Encodable {
+    
+    public var sampleClass: SampleClass?
+    public var stringNil: String?
+    public var stringArray: [String] = ["first", "second", "third"]
+    public var numberArray: [Int] = [1, 2, 3]
+    
+}
+
 @_silgen_name("Java_com_readdle_swiftjnibridge_MainActivity_createDataSource")
 public func mainActivity_createDataSource( __env: UnsafeMutablePointer<JNIEnv?>, __this: jobject?)-> jobject? {
-    return DataSource().toJava()
+    
+    let dataSource = DataSource()
+    
+    let javaEncoder = JavaEncoder()
+    let jsonEncoder = JSONEncoder()
+    var encodable = ComplexClass()
+    encodable.sampleClass = dataSource.randomSampleObject()
+    do {
+        NSLog("TRY to encode with JavaEncoder")
+        var data = try jsonEncoder.encode(encodable)
+        NSLog(String(data: data, encoding: .utf8) ?? "(null)")
+        try? javaEncoder.encode(encodable)
+    }
+    catch let error {
+        NSLog("Error: \(error)")
+        JNI.api.ExceptionClear(JNI.env)
+    }
+    
+    return dataSource.toJava()
 }
 
 public func convertToJavaJSON<T: Encodable>( _ encodable: T)-> jstring? {
