@@ -32,10 +32,25 @@ extension SampleClass {
     
     static var javaClass = JNI.GlobalFindClass("com/readdle/swiftjnibridge/SampleClass")
     static var javaConstructor = JNI.api.GetMethodID(JNI.env, SampleClass.javaClass!, "<init>",
-                                                     "(Ljava/lang/String;JBSIJZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+                                                     "(Ljava/lang/String;JBSIJZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V")
+    static var javaConstructor2 = JNI.api.GetMethodID(JNI.env, SampleClass.javaClass!, "<init>", "()V");
+    
+    static let javaDataSourceId = JNI.api.GetFieldID(JNI.env, javaClass, "dataSourceId", "Ljava/lang/String;")
+    static let javaPkInt = JNI.api.GetFieldID(JNI.env, javaClass, "pkInt", "J")
+    static let javaPkInt8 = JNI.api.GetFieldID(JNI.env, javaClass, "pkInt8", "B")
+    static let javaPkInt16 = JNI.api.GetFieldID(JNI.env, javaClass, "pkInt16", "S")
+    static let javaPkInt32 = JNI.api.GetFieldID(JNI.env, javaClass, "pkInt32", "I")
+    static let javaPkInt64 = JNI.api.GetFieldID(JNI.env, javaClass, "pkInt64", "J")
+    static let javaPkBool = JNI.api.GetFieldID(JNI.env, javaClass, "pkBool", "Z")
+    static let javaString1 = JNI.api.GetFieldID(JNI.env, javaClass, "string1", "Ljava/lang/String;")
+    static let javaString2 = JNI.api.GetFieldID(JNI.env, javaClass, "string2", "Ljava/lang/String;")
+    static let javaString3 = JNI.api.GetFieldID(JNI.env, javaClass, "string3", "Ljava/lang/String;")
+    static let javaString4 = JNI.api.GetFieldID(JNI.env, javaClass, "string4", "Ljava/lang/String;")
+    static let javaString5 = JNI.api.GetFieldID(JNI.env, javaClass, "string5", "Ljava/lang/String;")
+    static let javaString6 = JNI.api.GetFieldID(JNI.env, javaClass, "string6", "Ljava/lang/String;")
     
     @_silgen_name("Java_com_readdle_swiftjnibridge_SampleClass_toSwift")
-    public static func toSwift(_ env: UnsafeMutablePointer<JNIEnv?>,
+    public static func toSwift2(_ env: UnsafeMutablePointer<JNIEnv?>,
                                _ this: jobject?,
                                _ dataSourceId: jstring?,
                                _ pkInt: jlong,
@@ -72,33 +87,73 @@ extension SampleClass {
         return jlong(Int(bitPattern: Unmanaged.passRetained(sample).toOpaque()))
     }
     
+    public convenience init(javaObject: jobject?) {
+        self.init()
+        
+        self.dataSourceId = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaDataSourceId))
+        
+        self.pkInt = Int(JNI.api.GetLongField(JNI.env, javaObject, SampleClass.javaPkInt))
+        self.pkInt8 = JNI.api.GetByteField(JNI.env, javaObject, SampleClass.javaPkInt8)
+        self.pkInt16 = JNI.api.GetShortField(JNI.env, javaObject, SampleClass.javaPkInt16)
+        self.pkInt32 = Int32(JNI.api.GetIntField(JNI.env, javaObject, SampleClass.javaPkInt32))
+        self.pkInt64 = JNI.api.GetLongField(JNI.env, javaObject, SampleClass.javaPkInt64)
+        self.pkBool = JNI.api.GetBooleanField(JNI.env, javaObject, SampleClass.javaPkBool) == JNI_TRUE
+        
+        self.string1 = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaString1))
+        self.string2 = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaString2))
+        self.string3 = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaString3))
+        self.string4 = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaString4))
+        self.string5 = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaString5))
+        self.string6 = String(javaObject: JNI.api.GetObjectField(JNI.env, javaObject, SampleClass.javaString6))
+    }
+    
+    
     public func toJava() -> jobject? {
         var locals = [jobject]()
-        var args = [jvalue]()
-        args.append(JNIType.toJava(value: self.dataSourceId, locals: &locals))
+//        var args = [jvalue]()
+//        args.append(JNIType.toJava(value: self.dataSourceId, locals: &locals))
+//
+//        args.append(JNIType.toJava(value: self.pkInt, locals: &locals))
+//        args.append(JNIType.toJava(value: self.pkInt8, locals: &locals))
+//        args.append(JNIType.toJava(value: self.pkInt16, locals: &locals))
+//        args.append(JNIType.toJava(value: self.pkInt32, locals: &locals))
+//        args.append(JNIType.toJava(value: self.pkInt64, locals: &locals))
+//        args.append(JNIType.toJava(value: self.pkBool, locals: &locals))
+//
+//        args.append(JNIType.toJava(value: self.string1, locals: &locals))
+//        args.append(JNIType.toJava(value: self.string2, locals: &locals))
+//        args.append(JNIType.toJava(value: self.string3, locals: &locals))
+//        args.append(JNIType.toJava(value: self.string4, locals: &locals))
+//        args.append(JNIType.toJava(value: self.string5, locals: &locals))
+//        args.append(JNIType.toJava(value: self.string6, locals: &locals))
+//
+//        let object: jobject? = JNIMethod.NewObject(className: "com/readdle/swiftjnibridge/SampleClass",
+//                                         classCache: &SampleClass.javaClass,
+//                                         methodSig: "(Ljava/lang/String;JBSIJZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+//                                         methodCache: &SampleClass.javaConstructor,
+//                                         args: &args,
+//                                         locals: &locals)
+//        return object
         
-        args.append(JNIType.toJava(value: self.pkInt, locals: &locals))
-        args.append(JNIType.toJava(value: self.pkInt8, locals: &locals))
-        args.append(JNIType.toJava(value: self.pkInt16, locals: &locals))
-        args.append(JNIType.toJava(value: self.pkInt32, locals: &locals))
-        args.append(JNIType.toJava(value: self.pkInt64, locals: &locals))
-        args.append(JNIType.toJava(value: self.pkBool, locals: &locals))
+        let object: jobject? = JNI.api.NewObjectA(JNI.env, SampleClass.javaClass, SampleClass.javaConstructor2, nil)
+
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaDataSourceId, self.dataSourceId?.localJavaObject(&locals))
         
-        args.append(JNIType.toJava(value: self.string1, locals: &locals))
-        args.append(JNIType.toJava(value: self.string2, locals: &locals))
-        args.append(JNIType.toJava(value: self.string3, locals: &locals))
-        args.append(JNIType.toJava(value: self.string4, locals: &locals))
-        args.append(JNIType.toJava(value: self.string5, locals: &locals))
-        args.append(JNIType.toJava(value: self.string6, locals: &locals))
-        
-        let object: jobject? = JNIMethod.NewObject(className: "com/readdle/swiftjnibridge/SampleClass",
-                                         classCache: &SampleClass.javaClass,
-                                         methodSig: "(Ljava/lang/String;JBSIJZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
-                                         methodCache: &SampleClass.javaConstructor,
-                                         args: &args,
-                                         locals: &locals)
-        
-        return object
+        JNI.api.SetLongField(JNI.env, object, SampleClass.javaPkInt, Int64(self.pkInt))
+        JNI.api.SetByteField(JNI.env, object, SampleClass.javaPkInt8, self.pkInt8)
+        JNI.api.SetShortField(JNI.env, object, SampleClass.javaPkInt16, self.pkInt16)
+        JNI.api.SetIntField(JNI.env, object, SampleClass.javaPkInt32, jint(self.pkInt32))
+        JNI.api.SetLongField(JNI.env, object, SampleClass.javaPkInt64, self.pkInt64)
+        JNI.api.SetBooleanField(JNI.env, object, SampleClass.javaPkBool, jboolean(self.pkBool ? JNI_TRUE : JNI_FALSE))
+
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaString1, self.string1?.localJavaObject(&locals))
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaString2, self.string2?.localJavaObject(&locals))
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaString3, self.string3?.localJavaObject(&locals))
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaString4, self.string4?.localJavaObject(&locals))
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaString5, self.string5?.localJavaObject(&locals))
+        JNI.api.SetObjectField(JNI.env, object, SampleClass.javaString6, self.string6?.localJavaObject(&locals))
+
+        return JNI.check(object, &locals)
     }
     
 }

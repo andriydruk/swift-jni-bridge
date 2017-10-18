@@ -9,30 +9,46 @@ public class ComplexClass: Encodable {
     public var stringNil: String?
     public var stringArray: [String] = ["first", "second", "third"]
     public var numberArray: [Int] = [1, 2, 3]
+
+    public var objectArray = [SampleClass]()
+    public var dictSampleClass = [String: SampleClass]()
+    public var dictStrings = [String: String]()
     
 }
 
 @_silgen_name("Java_com_readdle_swiftjnibridge_MainActivity_createDataSource")
 public func mainActivity_createDataSource( __env: UnsafeMutablePointer<JNIEnv?>, __this: jobject?)-> jobject? {
+    return DataSource().toJava()
+}
+
+@_silgen_name("Java_com_readdle_swiftjnibridge_MainActivity_jniEncode")
+public func mainActivity_jniEncode( __env: UnsafeMutablePointer<JNIEnv?>, __this: jobject?) -> jobject? {
     
     let dataSource = DataSource()
     
-    let javaEncoder = JavaEncoder()
-    let jsonEncoder = JSONEncoder()
-    var encodable = ComplexClass()
+    let encodable = ComplexClass()
     encodable.sampleClass = dataSource.randomSampleObject()
+    encodable.objectArray.append(dataSource.randomSampleObject())
+    encodable.dictSampleClass["1"] = dataSource.randomSampleObject()
+    encodable.dictStrings["1"] = "2"
+    
     do {
         NSLog("TRY to encode with JavaEncoder")
-        var data = try jsonEncoder.encode(encodable)
+        let jsonEncoder = JSONEncoder()
+        let data = try jsonEncoder.encode(encodable)
         NSLog(String(data: data, encoding: .utf8) ?? "(null)")
-        try? javaEncoder.encode(encodable)
+        
+        let javaEncoder = JavaEncoder(forPackage: "com/readdle/swiftjnibridge")
+        let object = try javaEncoder.encode(encodable)
+        
+        return object
     }
     catch let error {
         NSLog("Error: \(error)")
-        JNI.api.ExceptionClear(JNI.env)
+        //JNI.api.ExceptionClear(JNI.env)
     }
-    
-    return dataSource.toJava()
+    NSLog("REturn encoding")
+    return nil
 }
 
 public func convertToJavaJSON<T: Encodable>( _ encodable: T)-> jstring? {

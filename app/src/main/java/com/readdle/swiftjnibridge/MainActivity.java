@@ -27,6 +27,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+
+        ComplexClass objEncoded = jniEncode();
+        Log.d("Java", "JNI encoded:" + objEncoded.toString());
+
         mDataSource = createDataSource();
 
         SampleClass obj = mDataSource.getObject();
@@ -53,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i("Java", "JNI read " + objects.length + " " + (SystemClock.uptimeMillis() - clock) + "ms");
 
         clock = SystemClock.uptimeMillis();
-        mDataSource.updateObjects(objects);
+        mDataSource.updateObjects3(objects);
         Log.i("Java", "JNI write " + (SystemClock.uptimeMillis() - clock) + "ms");
 
         clock = SystemClock.uptimeMillis();
@@ -93,5 +97,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public native DataSource createDataSource();
+    public native ComplexClass jniEncode();
 
 }

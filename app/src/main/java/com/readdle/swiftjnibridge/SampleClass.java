@@ -45,6 +45,10 @@ public class SampleClass {
     }
 
     // Constructor for JNI
+    private SampleClass() {
+
+    }
+
     private SampleClass(String dataSourceId, long pkInt, byte pkInt8, short pkInt16, int pkInt32, long pkInt64, boolean pkBool,
                         String string1, String string2, String string3, String string4, String string5, String string6) {
         this.dataSourceId = dataSourceId;

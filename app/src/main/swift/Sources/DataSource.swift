@@ -176,8 +176,8 @@ extension DataSource {
         return result
     }
     
-    @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_updateObjects")
-    public static func updateObjects( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?, retainedPointers: jlongArray)  {
+    @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_updateObjects2")
+    public static func updateObjects2( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?, retainedPointers: jlongArray)  {
         let count = Int(JNI.api.GetArrayLength(JNI.env, retainedPointers))
         var array = [SampleClass]()
         var isCopied: jboolean = 0
@@ -190,6 +190,15 @@ extension DataSource {
         }
         swiftObject(this)?.updateSampleObjects(array)
     }
+    
+//    @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_updateObjects")
+//    public static func updateObjects( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?, javaObjects: jobjectArray)  {
+//        var array = [SampleClass]()
+//        for i in 1 ..< JNI.api.GetArrayLength(JNI.env, javaObjects) {
+//            array.append(SampleClass(javaObject: JNI.api.GetObjectArrayElement(JNI.env, javaObjects, i)!))
+//        }
+//        swiftObject(this)?.updateSampleObjects(array)
+//    }
     
     // MARK: JSON
     @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_getObjectWithJSON")

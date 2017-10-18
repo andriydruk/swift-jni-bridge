@@ -26,12 +26,12 @@ public class DataSource {
         updateObject(object.toSwift());
     }
 
-    public void updateObjects(SampleClass[] objects) {
+    public void updateObjects3(SampleClass[] objects) {
         long[] swiftObjects = new long[objects.length];
         for (int i = 0; i < objects.length; i++) {
             swiftObjects[i] = objects[i].toSwift();
         }
-        updateObjects(swiftObjects);
+        updateObjects2(swiftObjects);
     }
 
     public native void updateProtoObject(byte[] array);
@@ -47,6 +47,7 @@ public class DataSource {
 
     // Private API for internal usage
     private native void updateObject(long retainedPointer);
-    private native void updateObjects(long[] objects);
+    private native void updateObjects2(long[] objects);
+    public native void updateObjects(SampleClass[] objects);
 
 }
