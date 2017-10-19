@@ -64,7 +64,18 @@ open class JavaEncoder: Encoder {
     open func encode<T : Encodable>(_ value: T) throws -> jobject {
         let storage = try self.pushInstance(value)
         let javaObject = JNI.api.NewLocalRef(JNI.env, storage.javaObject)!
-        try value.encode(to: self)
+        do {
+            try value.encode(to: self)
+        }
+        catch {
+            // clean all reference if failed
+            JNI.api.DeleteLocalRef(JNI.env, javaObject)
+            for storage in self.javaObjects {
+                JNI.api.DeleteLocalRef(JNI.env, storage.javaObject)
+            }
+            self.javaObjects.removeAll()
+            throw error
+        }
         assert(self.javaObjects.count == 0, "Missing encoding for \(self.javaObjects.count) objects")
         return javaObject
     }

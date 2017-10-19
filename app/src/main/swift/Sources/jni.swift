@@ -43,12 +43,14 @@ public func mainActivity_jniEncode( __env: UnsafeMutablePointer<JNIEnv?>, __this
         
         return object
     }
-    catch let error {
-        NSLog("Error: \(error)")
-        //JNI.api.ExceptionClear(JNI.env)
+    catch let error as JNIError {
+        error.throw()
+        return nil
     }
-    NSLog("REturn encoding")
-    return nil
+    catch let error {
+        NSLog("Unkwnon error: \(error)")
+        return nil
+    }
 }
 
 public func convertToJavaJSON<T: Encodable>( _ encodable: T)-> jstring? {

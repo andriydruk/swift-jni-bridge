@@ -9,9 +9,24 @@ import Foundation
 import java_swift
 
 public enum JNIError: Error {
+    
     case classNotFoundException(String)
     case methodNotFoundException(String)
     case fieldNotFoundException(String)
+    
+    private static let JavaExceptionClass = try! getJavaClass("java/lang/Exception")
+    
+    public func `throw`() {
+        switch self {
+        case .classNotFoundException(let message):
+            assert(JNI.api.ThrowNew(JNI.env, JNIError.JavaExceptionClass, "ClassNotFoundaException: \(message)") == 0)
+        case .methodNotFoundException(let message):
+            assert(JNI.api.ThrowNew(JNI.env, JNIError.JavaExceptionClass, "MethodNotFoundException: \(message)") == 0)
+        case .fieldNotFoundException(let message):
+            assert(JNI.api.ThrowNew(JNI.env, JNIError.JavaExceptionClass, "FieldNotFoundException: \(message)") == 0)
+        }
+        
+    }
 }
 
 fileprivate extension NSLock {
@@ -42,6 +57,7 @@ func getJavaClass(_ className: String) throws -> jclass {
             return javaClass
         }
         guard let javaClass = JNI.GlobalFindClass(className) else {
+            JNI.api.ExceptionClear(JNI.env)
             throw JNIError.classNotFoundException(className)
         }
         javaClasses[className] = javaClass
@@ -54,7 +70,7 @@ func getJavaEmptyConstructor(forClass className: String) throws -> jmethodID? {
 }
 
 func getJavaMethod(forClass className: String, method: String, sig: String) throws -> jmethodID {
-    let key = className + method + sig
+    let key = "\(className).\(method)\(sig)"
     let javaClass = try getJavaClass(className)
     if let methodID = javaMethods[key] {
         return methodID
@@ -64,7 +80,8 @@ func getJavaMethod(forClass className: String, method: String, sig: String) thro
             return methodID
         }
         guard let javaMethodID = JNI.api.GetMethodID(JNI.env, javaClass, method, sig) else {
-            throw JNIError.methodNotFoundException(className)
+            JNI.api.ExceptionClear(JNI.env)
+            throw JNIError.methodNotFoundException(key)
         }
         javaMethods[key] = javaMethodID
         return javaMethodID
@@ -72,7 +89,7 @@ func getJavaMethod(forClass className: String, method: String, sig: String) thro
 }
 
 func getJavaField(forClass className: String, field: String, sig: String) throws -> jfieldID {
-    let key = className + field + sig
+    let key = "\(className).\(field)\(sig)"
     let javaClass = try getJavaClass(className)
     if let fieldID = javaFields[key] {
         return fieldID
@@ -82,7 +99,8 @@ func getJavaField(forClass className: String, field: String, sig: String) throws
             return fieldID
         }
         guard let fieldID = JNI.api.GetFieldID(JNI.env, javaClass, field, sig) else {
-            throw JNIError.fieldNotFoundException(className)
+            JNI.api.ExceptionClear(JNI.env)
+            throw JNIError.fieldNotFoundException(key)
         }
         javaFields[key] = fieldID
         return fieldID

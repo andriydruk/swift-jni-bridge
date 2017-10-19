@@ -28,8 +28,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
-        ComplexClass objEncoded = jniEncode();
-        Log.d("Java", "JNI encoded:" + objEncoded.toString());
+        try {
+            ComplexClass objEncoded = jniEncode();
+            Log.d("Java", "JNI encoded:" + objEncoded.toString());
+        } catch (Exception e) {
+            Log.e("TAG", "Error", e);
+        }
 
         mDataSource = createDataSource();
 
@@ -97,6 +101,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public native DataSource createDataSource();
-    public native ComplexClass jniEncode();
+    public native ComplexClass jniEncode() throws Exception;
 
 }
