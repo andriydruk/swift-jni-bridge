@@ -10,6 +10,7 @@ import CoreFoundation
 import java_swift
 
 public enum JavaEncoderError: Error {
+    case notSupported
     case cantCreateObject(String)
 }
 
@@ -49,13 +50,8 @@ open class JavaEncoder: Encoder {
     /// Initializes `self` with default strategies.
     public init(forPackage: String) {
         self.codingPath = [CodingKey]()
-        
         self.package = forPackage
         self.javaObjects = [JNIStorageObject]()
-    }
-    
-    deinit {
-        NSLog("JavaEncoder deinit cleanup")
     }
     
     // MARK: - Encoding Values
@@ -69,6 +65,7 @@ open class JavaEncoder: Encoder {
         let storage = try self.pushInstance(value)
         let javaObject = JNI.api.NewLocalRef(JNI.env, storage.javaObject)!
         try value.encode(to: self)
+        assert(self.javaObjects.count == 0, "Missing encoding for \(self.javaObjects.count) objects")
         return javaObject
     }
     
@@ -122,13 +119,12 @@ fileprivate class JavaObjectContainer<K : CodingKey> : KeyedEncodingContainerPro
     }
     
     deinit {
-        NSLog("Deinit \(javaClass)")
         JNI.api.DeleteLocalRef(JNI.env, javaObject)
     }
     
     // MARK: - KeyedEncodingContainerProtocol Methods
     public func encodeNil(forKey key: Key) throws {
-        // Ignoring
+        throw JavaEncoderError.notSupported
     }
     
     public func encode(_ value: Bool, forKey key: Key) throws {
@@ -187,7 +183,6 @@ fileprivate class JavaObjectContainer<K : CodingKey> : KeyedEncodingContainerPro
     }
 }
 
-
 // MARK: - Encoding Containers
 fileprivate class JavaHashMapContainer<K : CodingKey> : KeyedEncodingContainerProtocol {
     
@@ -198,7 +193,7 @@ fileprivate class JavaHashMapContainer<K : CodingKey> : KeyedEncodingContainerPr
     private let encoder: JavaEncoder
     
     private var javaObject: jobject
-    private var javaPutMethod: jmethodID?
+    private var javaPutMethod = try! getJavaMethod(forClass: JavaHashMapClassname, method: "put", sig: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
     
     /// The path of coding keys taken to get to this point in encoding.
     private(set) public var codingPath: [CodingKey]
@@ -212,13 +207,12 @@ fileprivate class JavaHashMapContainer<K : CodingKey> : KeyedEncodingContainerPr
     }
     
     deinit {
-        NSLog("Deinit hashmap")
         JNI.api.DeleteLocalRef(JNI.env, javaObject)
     }
     
     // MARK: - KeyedEncodingContainerProtocol Methods
     public func encodeNil(forKey key: Key) throws {
-        // Ignoring
+        throw JavaEncoderError.notSupported
     }
     
     public func encode(_ value: String, forKey key: Key) throws {
@@ -226,12 +220,10 @@ fileprivate class JavaHashMapContainer<K : CodingKey> : KeyedEncodingContainerPr
         var args = [jvalue]()
         args.append(jvalue(l: key.stringValue.localJavaObject(&locals)))
         args.append(jvalue(l: value.localJavaObject(&locals)))
-        //TODO: clear locals here
-        _ = JNIMethod.CallObjectMethod(object: self.javaObject,
-                                   methodName: "put",
-                                   methodSig: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
-                                   methodCache: &javaPutMethod,
-                                   args: &args, locals: &locals)
+        withUnsafePointer(to: &args[0]) { argsPtr in
+            let result = JNI.check(JNI.api.CallObjectMethodA(JNI.env, javaObject, javaPutMethod, argsPtr), &locals)
+            assert(result == nil, "Rewrite for key \(key.stringValue)")
+        }
     }
     
     public func encode<T : Encodable>(_ value: T, forKey key: Key) throws {
@@ -246,12 +238,10 @@ fileprivate class JavaHashMapContainer<K : CodingKey> : KeyedEncodingContainerPr
         args.append(jvalue(l: key.stringValue.localJavaObject(&locals)))
         args.append(jvalue(l: object.javaObject))
         
-        //TODO: clear locals here
-        _ = JNIMethod.CallObjectMethod(object: self.javaObject,
-                                   methodName: "put",
-                                   methodSig: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
-                                   methodCache: &javaPutMethod,
-                                   args: &args, locals: &locals)
+        withUnsafePointer(to: &args[0]) { argsPtr in
+            let result = JNI.check(JNI.api.CallObjectMethodA(JNI.env, javaObject, javaPutMethod, argsPtr), &locals)
+            assert(result == nil, "Rewrite for key \(key.stringValue)")
+        }
         
         try value.encode(to: self.encoder)
     }
@@ -295,12 +285,13 @@ fileprivate class JavaArrayContainer : UnkeyedEncodingContainer {
     }
     
     deinit {
-        NSLog("Deinit array")
         JNI.api.DeleteLocalRef(JNI.env, javaObject)
     }
     
     // MARK: - UnkeyedEncodingContainer Methods
-    public func encodeNil() throws {  }
+    public func encodeNil() throws {
+        throw JavaEncoderError.notSupported
+    }
     
     public func encode(_ value: Int) throws {
         var value = jlong(value)
@@ -362,12 +353,11 @@ class JavaSingleValueEncodingContainer: SingleValueEncodingContainer {
     }
     
     public func encodeNil() throws {
-
+        throw JavaEncoderError.notSupported
     }
     
     public func encode<T : Encodable>(_ value: T) throws {
-        try self.encoder.pushInstance(value)
-        try value.encode(to: self.encoder)
+        throw JavaEncoderError.notSupported
     }
 }
 
@@ -382,7 +372,6 @@ extension JavaEncoder {
     
     @discardableResult
     fileprivate func pushInstance<T: Encodable>(_ value: T) throws -> JNIStorageObject {
-        NSLog("PushInstance: \(String(describing: type(of: value)))")
         let storage: JNIStorageObject
         if T.self == [String].self {
             let value = value as! [String]
@@ -390,7 +379,6 @@ extension JavaEncoder {
             guard let javaObject = JNI.api.NewObjectArray(JNI.env, jsize(value.count), javaClass, nil) else {
                 throw JavaEncoderError.cantCreateObject("\(JavaStringClassname)[]")
             }
-            //locals.append(javaObject)
             storage = JNIStorageObject(sig: "[L\(JavaStringClassname);", javaClass: nil, javaObject: javaObject)
         }
         else if T.self == [Int].self {
@@ -398,28 +386,23 @@ extension JavaEncoder {
             guard let javaObject = JNI.api.NewLongArray(JNI.env, jsize(value.count)) else {
                 throw JavaEncoderError.cantCreateObject("long[]")
             }
-            //locals.append(javaObject)
             storage = JNIStorageObject(sig: "[J", javaClass: nil, javaObject: javaObject)
         }
         else if let value = value as? [Encodable] {
             let fullClassName = package  + "/" + String(describing: type(of: value[0]))
-            NSLog("try to pushInstance \(fullClassName)[]")
             let javaClass = try getJavaClass(fullClassName)
             guard let javaObject = JNI.api.NewObjectArray(JNI.env, jsize(value.count), javaClass, nil) else {
                 throw JavaEncoderError.cantCreateObject("\(fullClassName)[]")
             }
-            //locals.append(javaObject)
             storage = JNIStorageObject(sig: "[L\(fullClassName);", javaClass: nil, javaObject: javaObject)
         }
         else {
             let fullClassName = getFullClassName(value)
-            NSLog("try to pushInstance \(fullClassName)")
             let javaClass = try getJavaClass(fullClassName)
             let emptyContructor = try getJavaEmptyConstructor(forClass: fullClassName)
             guard let javaObject = JNI.api.NewObjectA(JNI.env, javaClass, emptyContructor, nil) else {
                 throw JavaEncoderError.cantCreateObject(fullClassName)
             }
-            //locals.append(javaObject)
             storage = JNIStorageObject(sig: "L\(fullClassName);", javaClass: fullClassName, javaObject: javaObject)
         }
         javaObjects.append(storage)
