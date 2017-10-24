@@ -46,6 +46,7 @@ public class DataSource {
     public native DataModel.SampleClassProto getProtoObject();
 
     public native SampleClass[] getEncodedObjects();
+    public native void decodeObjects(SampleClass[] samples);
 
     // Private API for internal usage
     private native void updateObject(long retainedPointer);

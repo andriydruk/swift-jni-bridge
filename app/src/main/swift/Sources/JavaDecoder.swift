@@ -21,14 +21,10 @@ public class JavaDecoder: Decoder {
         self.package = package
     }
     
-    deinit {
-        NSLog("JavaDecoder deinit")
-    }
-    
     public func decode<T : Decodable>(_ type: T.Type, from javaObject: jobject) throws -> T {
         do {
-            let rootClassname = try getJavaClassname(from: javaObject)
-            self.storage.append(JNIStorageObject(type: .object(className: rootClassname), javaObject: javaObject))
+            let rootStorageType = try getJavaClassname(from: javaObject)
+            self.storage.append(JNIStorageObject(type: rootStorageType, javaObject: javaObject))
             let value = try T(from: self)
             assert(self.storage.count == 0, "Missing decoding for \(self.storage.count) objects")
             return value
@@ -95,9 +91,7 @@ fileprivate class JavaObjectContainer<K : CodingKey> : KeyedDecodingContainerPro
     }
     
     deinit {
-        NSLog("JavaObjectContainer deinit start")
         JNI.api.DeleteLocalRef(JNI.env, self.javaObject)
-        NSLog("JavaObjectContainer deinit finished")
     }
     
     func contains(_ key: K) -> Bool {
@@ -229,12 +223,10 @@ fileprivate class JavaHashMapContainer<K : CodingKey>: KeyedDecodingContainerPro
     }
     
     deinit {
-        NSLog("JavaHashMapContainer deinit start")
         for (_, value) in self.javaKeys {
            JNI.api.DeleteLocalRef(JNI.env, value)
         }
         JNI.api.DeleteLocalRef(JNI.env, self.javaObject)
-        NSLog("JavaHashMapContainer deinit finised")
     }
     
     func contains(_ key: K) -> Bool {
@@ -309,9 +301,7 @@ fileprivate class JavaUnkeyedDecodingContainer: UnkeyedDecodingContainer {
     }
     
     deinit {
-        NSLog("JavaUnkeyedDecodingContainer deinit start")
         JNI.api.DeleteLocalRef(JNI.env, self.javaObject)
-        NSLog("JavaUnkeyedDecodingContainer deinit finished")
     }
     
     func decodeNil() throws -> Bool {
@@ -376,10 +366,6 @@ fileprivate class JavaUnkeyedDecodingContainer: UnkeyedDecodingContainer {
 fileprivate class JavaSingleValueDecodingContainer: SingleValueDecodingContainer {
     var codingPath: [CodingKey] = []
     
-    deinit {
-        NSLog("DEINIT")
-    }
-    
     func decodeNil() -> Bool {
         fatalError("Unsupported")
     }
@@ -433,14 +419,18 @@ extension JavaDecoder {
         return javaObject
     }
     
-    fileprivate func getJavaClassname(from obj: jobject) throws -> String {
+    fileprivate func getJavaClassname(from obj: jobject) throws -> JNIStorageType {
         let cls = JNI.api.GetObjectClass(JNI.env, obj)
         let mid = try getJavaMethod(forClass: JavaClassClassname, method: "getName", sig: "()L\(JavaStringClassname);")
         let javaClassName = JNI.api.CallObjectMethodA(JNI.env, cls, mid, nil)
-        let className = String(javaObject: javaClassName)
+        let className = String(javaObject: javaClassName).replacingOccurrences(of: ".", with: "/")
         JNI.api.DeleteLocalRef(JNI.env, javaClassName)
-        NSLog("Calling class is \(className)")
-        return className.replacingOccurrences(of: ".", with: "/")
+        if className.starts(with: "[") {
+            let subClassname = String(className.dropFirst(2)).dropLast(1)
+            // TODO: write parseSig func
+            return JNIStorageType.array(type: JNIStorageType.object(className: String(subClassname)))
+        }
+        return JNIStorageType.object(className: className)
     }
     
 }

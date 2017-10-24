@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i("Java", "JavaEncoder read " + objects.length + " " + (SystemClock.uptimeMillis() - clock) + "ms");
 
         clock = SystemClock.uptimeMillis();
-        mDataSource.updateObjects3(objects);
+        mDataSource.decodeObjects(objects);
         Log.i("Java", "JavaDecoder write " + (SystemClock.uptimeMillis() - clock) + "ms");
     }
 
