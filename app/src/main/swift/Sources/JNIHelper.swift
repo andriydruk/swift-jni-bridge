@@ -8,6 +8,16 @@
 import Foundation
 import java_swift
 
+let JavaHashMapClassname = "java/util/HashMap"
+let JavaStringClassname = "java/lang/String"
+let JavaSetClassname = "java/util/Set"
+let JavaObjectClassname = "java/lang/Object"
+let JavaClassClassname = "java/lang/Class"
+
+let JavaHashMapSig = "Ljava/util/HashMap;"
+let JavaStringSig = "Ljava/lang/String;"
+
+
 public enum JNIError: Error {
     
     case classNotFoundException(String)

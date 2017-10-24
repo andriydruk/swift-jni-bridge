@@ -9,25 +9,37 @@ import Foundation
 import CoreFoundation
 import java_swift
 
-public enum JavaEncoderError: Error {
+public enum JavaCodingError: Error {
     case notSupported
     case cantCreateObject(String)
+    case cantFindObject(String)
+    case nilNotSupported(String)
+    case wrongArrayLength
 }
 
-fileprivate let JavaHashMapClassname = "java/util/HashMap"
-fileprivate let JavaHashMapSig = "Ljava/util/HashMap;"
-
-fileprivate let JavaStringClassname = "java/lang/String"
-fileprivate let JavaStringSig = "Ljava/lang/String;"
-
-fileprivate struct JNIStorageObject {
-    let sig: String
-    let javaClass: String?
-    let javaObject: jobject
+indirect enum JNIStorageType {
+    case primitive(name: String)
+    case object(className: String)
+    case array(type: JNIStorageType)
+    case dictionary
     
-    var isDisctionary: Bool {
-        return sig == JavaHashMapSig
+    var sig: String {
+        switch self {
+        case .primitive(let name):
+            return name
+        case .array(let type):
+            return "[\(type.sig)"
+        case .object(let className):
+            return "L\(className);"
+        case .dictionary:
+            return "L\(JavaHashMapClassname);"
+        }
     }
+}
+
+struct JNIStorageObject {
+    let type: JNIStorageType
+    let javaObject: jobject
 }
 
 /// `JavaEncoder` facilitates the encoding of `Encodable` values into JSON.
@@ -83,15 +95,15 @@ open class JavaEncoder: Encoder {
     // MARK: - Encoder Methods
     public func container<Key>(keyedBy: Key.Type) -> KeyedEncodingContainer<Key> {
         let storage = self.popInstance()
-        let javaObject = storage.javaObject
-        
-        if storage.isDisctionary {
-            let container = JavaHashMapContainer<Key>(referencing: self, codingPath: self.codingPath, javaObject: javaObject)
+        switch storage.type {
+        case .dictionary:
+            let container = JavaHashMapContainer<Key>(referencing: self, codingPath: self.codingPath, javaObject: storage.javaObject)
             return KeyedEncodingContainer(container)
-        }
-        else {
-            let container = JavaObjectContainer<Key>(referencing: self, codingPath: self.codingPath, javaClass: storage.javaClass!, javaObject: javaObject)
+        case let .object(className):
+            let container = JavaObjectContainer<Key>(referencing: self, codingPath: self.codingPath, javaClass: className, javaObject: storage.javaObject)
             return KeyedEncodingContainer(container)
+        default:
+            fatalError("Only keyed containers")
         }
     }
     
@@ -135,7 +147,7 @@ fileprivate class JavaObjectContainer<K : CodingKey> : KeyedEncodingContainerPro
     
     // MARK: - KeyedEncodingContainerProtocol Methods
     public func encodeNil(forKey key: Key) throws {
-        throw JavaEncoderError.notSupported
+        throw JavaCodingError.notSupported
     }
     
     public func encode(_ value: Bool, forKey key: Key) throws {
@@ -172,7 +184,7 @@ fileprivate class JavaObjectContainer<K : CodingKey> : KeyedEncodingContainerPro
     
     public func encode<T : Encodable>(_ value: T, forKey key: Key) throws {
         let object = try self.encoder.pushInstance(value)
-        let filed = try getJavaField(forClass: self.javaClass, field: key.stringValue, sig: object.sig)
+        let filed = try getJavaField(forClass: self.javaClass, field: key.stringValue, sig: object.type.sig)
         JNI.api.SetObjectField(JNI.env, self.javaObject, filed, object.javaObject)
         try value.encode(to: self.encoder)
     }
@@ -223,7 +235,7 @@ fileprivate class JavaHashMapContainer<K : CodingKey> : KeyedEncodingContainerPr
     
     // MARK: - KeyedEncodingContainerProtocol Methods
     public func encodeNil(forKey key: Key) throws {
-        throw JavaEncoderError.notSupported
+        throw JavaCodingError.notSupported
     }
     
     public func encode(_ value: String, forKey key: Key) throws {
@@ -301,7 +313,7 @@ fileprivate class JavaArrayContainer : UnkeyedEncodingContainer {
     
     // MARK: - UnkeyedEncodingContainer Methods
     public func encodeNil() throws {
-        throw JavaEncoderError.notSupported
+        throw JavaCodingError.notSupported
     }
     
     public func encode(_ value: Int) throws {
@@ -364,11 +376,11 @@ class JavaSingleValueEncodingContainer: SingleValueEncodingContainer {
     }
     
     public func encodeNil() throws {
-        throw JavaEncoderError.notSupported
+        throw JavaCodingError.notSupported
     }
     
     public func encode<T : Encodable>(_ value: T) throws {
-        throw JavaEncoderError.notSupported
+        throw JavaCodingError.notSupported
     }
 }
 
@@ -388,33 +400,43 @@ extension JavaEncoder {
             let value = value as! [String]
             let javaClass = try getJavaClass(JavaStringClassname)
             guard let javaObject = JNI.api.NewObjectArray(JNI.env, jsize(value.count), javaClass, nil) else {
-                throw JavaEncoderError.cantCreateObject("\(JavaStringClassname)[]")
+                throw JavaCodingError.cantCreateObject("\(JavaStringClassname)[]")
             }
-            storage = JNIStorageObject(sig: "[L\(JavaStringClassname);", javaClass: nil, javaObject: javaObject)
+            storage = JNIStorageObject(type: .array(type: .object(className: JavaStringClassname)), javaObject: javaObject)
         }
         else if T.self == [Int].self {
             let value = value as! [Int]
             guard let javaObject = JNI.api.NewLongArray(JNI.env, jsize(value.count)) else {
-                throw JavaEncoderError.cantCreateObject("long[]")
+                throw JavaCodingError.cantCreateObject("long[]")
             }
-            storage = JNIStorageObject(sig: "[J", javaClass: nil, javaObject: javaObject)
+            storage = JNIStorageObject(type: .array(type: .primitive(name: "J")), javaObject: javaObject)
         }
         else if let value = value as? [Encodable] {
-            let fullClassName = package  + "/" + String(describing: type(of: value[0]))
+            let subType = String("\(T.self)".dropFirst(6)).dropLast(1)
+            let fullClassName = package  + "/" + subType
             let javaClass = try getJavaClass(fullClassName)
             guard let javaObject = JNI.api.NewObjectArray(JNI.env, jsize(value.count), javaClass, nil) else {
-                throw JavaEncoderError.cantCreateObject("\(fullClassName)[]")
+                throw JavaCodingError.cantCreateObject("\(fullClassName)[]")
             }
-            storage = JNIStorageObject(sig: "[L\(fullClassName);", javaClass: nil, javaObject: javaObject)
+            storage = JNIStorageObject(type: .array(type: .object(className: fullClassName)), javaObject: javaObject)
         }
         else {
-            let fullClassName = getFullClassName(value)
+            let storageType: JNIStorageType
+            let fullClassName: String
+            if value is [String: Encodable] {
+                fullClassName = JavaHashMapClassname
+                storageType = .dictionary
+            }
+            else {
+                fullClassName = package  + "/" + String(describing: type(of: value))
+                storageType = .object(className: fullClassName)
+            }
             let javaClass = try getJavaClass(fullClassName)
             let emptyContructor = try getJavaEmptyConstructor(forClass: fullClassName)
             guard let javaObject = JNI.api.NewObjectA(JNI.env, javaClass, emptyContructor, nil) else {
-                throw JavaEncoderError.cantCreateObject(fullClassName)
+                throw JavaCodingError.cantCreateObject(fullClassName)
             }
-            storage = JNIStorageObject(sig: "L\(fullClassName);", javaClass: fullClassName, javaObject: javaObject)
+            storage = JNIStorageObject(type: storageType, javaObject: javaObject)
         }
         javaObjects.append(storage)
         return storage

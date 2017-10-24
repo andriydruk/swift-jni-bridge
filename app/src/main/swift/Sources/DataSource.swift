@@ -191,15 +191,6 @@ extension DataSource {
         swiftObject(this)?.updateSampleObjects(array)
     }
     
-//    @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_updateObjects")
-//    public static func updateObjects( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?, javaObjects: jobjectArray)  {
-//        var array = [SampleClass]()
-//        for i in 1 ..< JNI.api.GetArrayLength(JNI.env, javaObjects) {
-//            array.append(SampleClass(javaObject: JNI.api.GetObjectArrayElement(JNI.env, javaObjects, i)!))
-//        }
-//        swiftObject(this)?.updateSampleObjects(array)
-//    }
-    
     // MARK: JSON
     @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_getObjectWithJSON")
     public static func getObjectWithJSON( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?)-> jstring? {
@@ -244,6 +235,48 @@ extension DataSource {
     public static func updateProtoObject( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?, _ byteArray: jarray?) {
         if let proto = SampleClassProto.init(byteArray: byteArray) {
             NSLog("updateProtoObject: \(proto.dataSourceID)")
+        }
+    }
+    
+    // MARK: JavaEncoder
+    @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_getEncodedObjects")
+    public static func getEncodedObjects( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?)-> jobjectArray? {
+        guard let swiftSelf = swiftObject(this) else {
+            return nil
+        }
+        let samples = [SampleClass](repeating: swiftSelf.notRandomSampleObject(), count: 1000)
+        do {
+            let encoder = JavaEncoder(forPackage: "com/readdle/swiftjnibridge")
+            let object = try encoder.encode(samples)
+            return object
+        }
+        catch let error as JNIError {
+            NSLog("JNIError error: \(error)")
+            error.throw()
+            return nil
+        }
+        catch let error {
+            NSLog("Unkwnon error: \(error)")
+            return nil
+        }
+    }
+    
+    @_silgen_name("Java_com_readdle_swiftjnibridge_DataSource_decodeObjects")
+    public static func decodeObjects( __env: UnsafeMutablePointer<JNIEnv?>, this: jobject?, samples: jobjectArray)  {
+        guard let swiftSelf = swiftObject(this) else {
+            return
+        }
+        do {
+            let decoder = JavaDecoder(forPackage: "com/readdle/swiftjnibridge")
+            let samples: [SampleClass] = try decoder.decode([SampleClass].self, from: samples)
+            swiftSelf.updateSampleObjects(samples)
+        }
+        catch let error as JNIError {
+            NSLog("JNIError error: \(error)")
+            error.throw()
+        }
+        catch let error {
+            NSLog("Unkwnon error: \(error)")
         }
     }
 

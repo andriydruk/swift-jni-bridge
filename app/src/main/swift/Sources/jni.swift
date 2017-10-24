@@ -3,7 +3,7 @@ import java_swift
 import Foundation
 import Dispatch
 
-public class ComplexClass: Encodable {
+public class ComplexClass: Codable {
     
     public var sampleClass: SampleClass?
     public var stringNil: String?
@@ -19,38 +19,6 @@ public class ComplexClass: Encodable {
 @_silgen_name("Java_com_readdle_swiftjnibridge_MainActivity_createDataSource")
 public func mainActivity_createDataSource( __env: UnsafeMutablePointer<JNIEnv?>, __this: jobject?)-> jobject? {
     return DataSource().toJava()
-}
-
-@_silgen_name("Java_com_readdle_swiftjnibridge_MainActivity_jniEncode")
-public func mainActivity_jniEncode( __env: UnsafeMutablePointer<JNIEnv?>, __this: jobject?) -> jobject? {
-    
-    let dataSource = DataSource()
-    
-    let encodable = ComplexClass()
-    encodable.sampleClass = dataSource.randomSampleObject()
-    encodable.objectArray.append(dataSource.randomSampleObject())
-    encodable.dictSampleClass["1"] = dataSource.randomSampleObject()
-    encodable.dictStrings["1"] = "2"
-    
-    do {
-        NSLog("TRY to encode with JavaEncoder")
-        let jsonEncoder = JSONEncoder()
-        let data = try jsonEncoder.encode(encodable)
-        NSLog(String(data: data, encoding: .utf8) ?? "(null)")
-        
-        let javaEncoder = JavaEncoder(forPackage: "com/readdle/swiftjnibridge")
-        let object = try javaEncoder.encode(encodable)
-        
-        return object
-    }
-    catch let error as JNIError {
-        error.throw()
-        return nil
-    }
-    catch let error {
-        NSLog("Unkwnon error: \(error)")
-        return nil
-    }
 }
 
 public func convertToJavaJSON<T: Encodable>( _ encodable: T)-> jstring? {
@@ -89,6 +57,13 @@ extension JNICore {
         let result = api.NewGlobalRef(env, clazz)
         api.DeleteLocalRef(env, clazz)
         return result
+    }
+    
+    func dumpReferenceTables() throws {
+        let vm_class = try getJavaClass("dalvik/system/VMDebug")
+        let dump_mid =  JNI.api.GetStaticMethodID(JNI.env, vm_class, "dumpReferenceTables", "()V")
+        JNI.api.CallStaticVoidMethodA(JNI.env, vm_class, dump_mid, nil)
+        JNI.api.ExceptionClear(JNI.env)
     }
     
 }
